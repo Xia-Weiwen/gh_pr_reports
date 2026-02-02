@@ -1,0 +1,33 @@
+name: Weekly Runner
+
+on:
+  schedule:
+    # Run every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+        run: pip install -q -U google-genai
+
+    - name: Run Script
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: bash run_all.sh
+
+    - name: Commit Report
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Add weekly reports"
