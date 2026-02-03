@@ -31,7 +31,7 @@ jobs:
       run: bash run_all.sh
 
     - name: Commit Report
-      uses: stefanzweifel/git-auto-commit-action@v5
+      uses: stefanzweifel/git-auto-commit-action@v7
       with:
         commit_message: "Add weekly reports"
 
