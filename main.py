@@ -140,10 +140,10 @@ def summarize_prs_by_ai(pr_summary_string, owner, repo):
 f"""
 Act as a Senior AI Software Architect. Analyze the following list of Pull Requests from {owner}/{repo} and provide a high-signal technical digest for a team of framework developers. Be Professional, technical and objective. Keep concise. Skip the "Here is your report" intro.
 
-Start the report with a key takeaways: A one-sentence summary of the most impactful trend this week, with total number of PRs and top active areas. Then summarize these PRs by their categories (features, components, hardware backends, etc.)
+Start the report with a key takeaways: A one-sentence summary of the most impactful trend this week, with total number of PRs and top active areas (with inline numbering for these areas). Then summarize these PRs by their categories (features, components, hardware backends, etc.)
 
 **Formatting Instructions:**
-- Use concise bullet points.
+- Use numbering for the first level, bullet points for other levels
 - Use backticks for code symbols (e.g., `DTensor`).
 - Give number and link for mentioned PRs (e.g., [PR#1234](URL))
 
