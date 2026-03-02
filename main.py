@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import requests
 from datetime import datetime, timedelta, timezone
 import time
@@ -7,7 +8,7 @@ import json
 from google import genai
 
 
-def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch"):
+def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch", since_time=None, end_time=None):
     """
     Get pull requests from the given repository in the last week.
     """
@@ -16,7 +17,10 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch"):
     if GITHUB_TOKEN is None:
         print("Warning: GH_TOKEN environment variable is not set. You may hit rate limits.")
 
-    since_time = datetime.now(timezone.utc) - timedelta(weeks=1)
+    if end_time is None:
+        end_time = datetime.now(timezone.utc)
+    if since_time is None:
+        since_time = end_time - timedelta(weeks=1)
     since_iso = since_time.isoformat().replace('+00:00', 'Z')
 
     # API endpoint
@@ -73,11 +77,12 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch"):
 
             # Filter PRs from the last week
             recent_pulls = []
+            found_older = False
             for pull in pulls:
                 created_at = datetime.fromisoformat(pull['created_at'].replace('Z', '+00:00'))
 
                 # Add to results if created within the last week
-                if created_at >= since_time:
+                if created_at >= since_time and created_at <= end_time:
                     recent_pulls.append({
                         'number': pull['number'],
                         'title': pull['title'],
@@ -88,15 +93,16 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch"):
                         'labels': [label['name'] for label in pull.get('labels', [])],
                         'body': pull.get('body', ''),
                     })
-                else:
+                elif created_at < since_time:
                     # Since the list is sorted by creation time, stop when encountering older PRs
+                    found_older = True
                     break
 
             print(f"  -> {len(recent_pulls)} pull requests created since {since_iso}")
             all_pulls.extend(recent_pulls)
 
             # Stop fetching if current page has PRs older than a week
-            if len(recent_pulls) < len(pulls):
+            if found_older:
                 break
 
             params['page'] += 1
@@ -112,6 +118,19 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch"):
     return all_pulls
 
 
+def clean_up_body(body: str):
+    cleaned_body = re.sub(r'<!--.*?-->', '', body)
+    cleaned_body = re.sub(r'\n+', '\n', cleaned_body)
+    cleaned_body = re.sub(r'(\r\n)+', r'\r\n', cleaned_body)
+    tail_idx = cleaned_body.find("## Accuracy Tests")
+    if tail_idx > 0:
+        cleaned_body = cleaned_body[:tail_idx]
+    tail_idx = cleaned_body.find("## Checklist")
+    if tail_idx > 0:
+        cleaned_body = cleaned_body[:tail_idx]
+    return cleaned_body
+
+
 def get_pulls_summary_as_string(pulls):
     """
     Get a summary of pull requests as a string.
@@ -123,7 +142,7 @@ def get_pulls_summary_as_string(pulls):
         summary_lines.append(f"   Author: {pull['user']}")
         summary_lines.append(f"   Created at: {pull['created_at']}")
         summary_lines.append(f"   Labels: {', '.join(pull['labels']) if pull['labels'] else 'None'}")
-        summary_lines.append(f"   Description: {pull['body']}...")
+        summary_lines.append(f"   Description: {clean_up_body(pull['body'])}")
         summary_lines.append("\n\n")
 
     return "\n".join(summary_lines)
@@ -151,10 +170,18 @@ Start the report with a key takeaways: A one-sentence summary of the most impact
 {pr_summary_string}
 """
     )
-    response = client.models.generate_content(
-        model="gemini-3-flash-preview", contents=prompt
-    )
-    return response.text
+    summary = ""
+    try:
+        print("Trying GEMINI...")
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview", contents=prompt
+        )
+        summary = response.text
+    except Exception as e:
+        print("Request failed!")
+        print(e)
+        raise e
+    return summary
 
 
 if __name__ == "__main__":
@@ -165,8 +192,14 @@ if __name__ == "__main__":
     else:
         owner = "pytorch"
         repo = "pytorch"
+    print("=" * 20)
+    print(owner, "/", repo)
+    print("=" * 20)
     # Get pull requests
-    recent_pulls = get_recent_pulls_of_repo(owner, repo)
+    end_time = datetime.now(timezone.utc)
+    # end_time = datetime(year=2026, month=3, day=1, hour=0, minute=0, second=0, tzinfo=timezone.utc)
+    since_time = end_time - timedelta(weeks=1)
+    recent_pulls = get_recent_pulls_of_repo(owner, repo, since_time, end_time)
     if not recent_pulls:
         print("No recent pull requests found.")
         sys.exit(0)
@@ -184,8 +217,8 @@ if __name__ == "__main__":
     os.makedirs("reports", exist_ok=True)
     report_dir = os.path.join("reports", f"{owner}_{repo}")
     os.makedirs(report_dir, exist_ok=True)
-    date_str = datetime.now().strftime("%Y%m%d")
-    start_date = (datetime.now() - timedelta(weeks=1)).strftime("%Y%m%d")
+    date_str = end_time.strftime("%Y%m%d")
+    start_date = since_time.strftime("%Y%m%d")
     report_path = os.path.join(report_dir, f"report-{date_str}.md")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(f"# AI Analysis of Pull Requests for {owner}/{repo} during {start_date}-{date_str}\n\n")
