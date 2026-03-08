@@ -119,6 +119,9 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch", since_time=None, e
 
 
 def clean_up_body(body: str):
+    if not isinstance(body, str):
+        print("Pull body is not a string, but", type(body))
+        return body
     cleaned_body = re.sub(r'<!--.*?-->', '', body)
     cleaned_body = re.sub(r'\n+', '\n', cleaned_body)
     cleaned_body = re.sub(r'(\r\n)+', r'\r\n', cleaned_body)
