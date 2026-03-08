@@ -131,7 +131,10 @@ def clean_up_body(body: str):
     tail_idx = cleaned_body.find("## Checklist")
     if tail_idx > 0:
         cleaned_body = cleaned_body[:tail_idx]
-    return cleaned_body
+    tail_idx = cleaned_body.find("## Test")
+    if tail_idx > 0:
+        cleaned_body = cleaned_body[:tail_idx]
+    return cleaned_body[:500]
 
 
 def get_pulls_summary_as_string(pulls):
