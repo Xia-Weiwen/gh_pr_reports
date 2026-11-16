@@ -63,7 +63,7 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch", since_time=None, e
                     continue
                 else:
                     print("Max retries reached. Exiting.")
-                    break
+                    exit(1)
             retries = 5  # Reset retries on success
 
             # Parse JSON response
@@ -110,10 +110,10 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch", since_time=None, e
 
     except requests.exceptions.RequestException as e:
         print(f"Request error: {e}")
-        return []
+        exit(2)
     except json.JSONDecodeError as e:
         print(f"JSON parsing error: {e}")
-        return []
+        exit(3)
 
     return all_pulls
 
