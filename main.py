@@ -119,6 +119,8 @@ def get_recent_pulls_of_repo(owner="pytorch", repo="pytorch", since_time=None, e
 
 
 def clean_up_body(body: str):
+    # The PR body can be lengthy (especially for SGLang) so we remove
+    # unnecessary contents and trim the body to avoid hitting rate limits.
     if not isinstance(body, str):
         print("Pull body is not a string, but", type(body))
         return body
@@ -134,7 +136,7 @@ def clean_up_body(body: str):
     tail_idx = cleaned_body.find("## Test")
     if tail_idx > 0:
         cleaned_body = cleaned_body[:tail_idx]
-    return cleaned_body[:500]
+    return cleaned_body[:300]
 
 
 def get_pulls_summary_as_string(pulls):
